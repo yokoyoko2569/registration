@@ -2,27 +2,45 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  >
+
   <title>YOKO YOKO Member</title>
 
+  <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <style>
-    html, body {
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
       overflow: hidden;
       background: #f3e8e2;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
     }
 
     #appFrame {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 0;
+
       width: 100%;
       height: 100%;
+
       border: 0;
       background: #f3e8e2;
     }
@@ -31,144 +49,539 @@
       position: absolute;
       inset: 0;
       z-index: 10;
+
       display: flex;
       align-items: center;
       justify-content: center;
+
       padding: 24px;
+
       text-align: center;
       color: #7a4a25;
       background: #f3e8e2;
     }
 
-    #loading.hidden { display: none; }
+    #loading.hidden {
+      display: none;
+    }
 
     .box {
+      width: 100%;
       max-width: 320px;
       line-height: 1.55;
     }
 
     .title {
       margin-bottom: 8px;
+
       color: #3d1e0a;
+      font-size: 22px;
       font-weight: 800;
-      font-size: 20px;
+    }
+
+    .message {
+      font-size: 15px;
     }
   </style>
 </head>
+
 <body>
+
+  <!-- Loading screen -->
   <div id="loading">
     <div class="box">
-      <div class="title">YOKO YOKO</div>
-      <div id="loadingText">กำลังเปิดระบบสมาชิก...</div>
+      <div class="title">
+        YOKO YOKO
+      </div>
+
+      <div
+        id="loadingText"
+        class="message"
+      >
+        กำลังเปิดระบบสมาชิก...
+      </div>
     </div>
   </div>
 
-  <iframe id="appFrame" title="YOKO YOKO Member"></iframe>
+  <!-- Apps Script Web App -->
+  <iframe
+    id="appFrame"
+    title="YOKO YOKO Member"
+    allow="clipboard-read; clipboard-write"
+  ></iframe>
+
 
   <script>
-    // LIFF ID ปัจจุบันของ YOKO YOKO
+    /*
+     * ============================================
+     * YOKO YOKO
+     * LINE LIFF → GitHub Pages → Apps Script
+     * ============================================
+     */
+
     const LIFF_ID = '2010317821-PogKrdLy';
 
-    // Apps Script Web App URL ปัจจุบัน
-    // const GAS_URL = 'https://script.google.com/macros/s/AKfycbzI_0G17EB80WhM4imQi20EG0vxaqX0ZjfPWn6gWCSOUPr0uswcZhAtX6EnoI6QYyMA/exec';
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwmQZnWL7USCRAUtbXfLK-0a2f_iRYlHyp6xXov37gON8drB_PMP35uMJtOXFeA8XLS/exec';
-    const frame = document.getElementById('appFrame');
-    const loading = document.getElementById('loading');
-    const loadingText = document.getElementById('loadingText');
+    /*
+     * Apps Script Web App URL ตัวใหม่
+     */
+    const GAS_URL =
+      'https://script.google.com/macros/s/AKfycbwmQZnWL7USCRAUtbXfLK-0a2f_iRYlHyp6xXov37gON8drB_PMP35uMJtOXFeA8XLS/exec';
+
+
+    const frame =
+      document.getElementById('appFrame');
+
+    const loading =
+      document.getElementById('loading');
+
+    const loadingText =
+      document.getElementById('loadingText');
+
 
     let currentPage = 'register';
+
     let auth = {
       idToken: '',
       displayName: ''
     };
 
-    async function initApp() {
-      try {
-        await liff.init({ liffId: LIFF_ID });
 
-        // สำคัญ: อ่าน query parameter หลัง liff.init() เสร็จแล้ว
-        const params = new URLSearchParams(window.location.search);
-        currentPage = params.get('page') === 'points' ? 'points' : 'register';
+    /*
+     * ============================================
+     * ตรวจว่า user ต้องการเปิดหน้าอะไร
+     *
+     * รองรับ:
+     *
+     * ?page=register
+     * ?page=points
+     *
+     * รวมถึงกรณี LINE ส่งผ่าน liff.state
+     * ============================================
+     */
+    function getRequestedPage() {
 
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
+
+
+      /*
+       * 1. หา page ปกติก่อน
+       *
+       * รองรับกรณีมี page ซ้ำ
+       * โดยใช้ค่าตัวสุดท้าย
+       */
+      const pages =
+        params.getAll('page');
+
+      if (pages.length > 0) {
+
+        const lastPage =
+          String(
+            pages[pages.length - 1]
+          ).toLowerCase();
+
+        if (lastPage === 'points') {
+          return 'points';
         }
 
-        auth.idToken = liff.getIDToken() || '';
+        return 'register';
+      }
 
-        if (!auth.idToken) {
-          showFatal(
-            'ไม่สามารถรับข้อมูลยืนยันตัวตน LINE ได้ กรุณาตรวจสอบว่า LIFF เปิด Scope: openid แล้ว'
-          );
-          return;
-        }
+
+      /*
+       * 2. fallback:
+       * บางครั้ง LINE อาจเก็บ URL ไว้ใน liff.state
+       */
+      const liffState =
+        params.get('liff.state');
+
+      if (liffState) {
 
         try {
-          const profile = await liff.getProfile();
-          auth.displayName = profile && profile.displayName
-            ? profile.displayName
-            : '';
-        } catch (e) {
+
+          let decoded =
+            decodeURIComponent(liffState);
+
+          /*
+           * ตัวอย่าง:
+           *
+           * /?page=points
+           *
+           * หรือ
+           *
+           * ?page=points
+           */
+          if (
+            decoded.startsWith('/')
+          ) {
+            decoded =
+              decoded.substring(1);
+          }
+
+          if (
+            decoded.startsWith('?')
+          ) {
+            decoded =
+              decoded.substring(1);
+          }
+
+
+          const stateParams =
+            new URLSearchParams(decoded);
+
+          const statePages =
+            stateParams.getAll('page');
+
+          if (
+            statePages.length > 0
+          ) {
+
+            const statePage =
+              String(
+                statePages[
+                  statePages.length - 1
+                ]
+              ).toLowerCase();
+
+            if (
+              statePage === 'points'
+            ) {
+              return 'points';
+            }
+          }
+
+        } catch (error) {
+
+          console.warn(
+            'Cannot parse liff.state:',
+            error
+          );
+        }
+      }
+
+
+      /*
+       * ถ้าไม่มี page
+       * ให้สมัครสมาชิกเป็นค่า default
+       */
+      return 'register';
+    }
+
+
+
+    /*
+     * ============================================
+     * เริ่ม LIFF
+     * ============================================
+     */
+    async function initApp() {
+
+      try {
+
+        loadingText.textContent =
+          'กำลังเชื่อมต่อ LINE...';
+
+
+        /*
+         * สำคัญ:
+         * ต้อง init ก่อน
+         */
+        await liff.init({
+          liffId: LIFF_ID
+        });
+
+
+        /*
+         * หลัง init แล้ว
+         * ค่อยตรวจ page
+         */
+        currentPage =
+          getRequestedPage();
+
+
+        console.log(
+          'Current URL:',
+          window.location.href
+        );
+
+        console.log(
+          'Requested page:',
+          currentPage
+        );
+
+
+        /*
+         * ถ้ายังไม่ได้ Login LINE
+         */
+        if (!liff.isLoggedIn()) {
+
+          loadingText.textContent =
+            'กำลังเข้าสู่ระบบ LINE...';
+
+          liff.login();
+
+          return;
+        }
+
+
+        /*
+         * รับ ID Token
+         */
+        auth.idToken =
+          liff.getIDToken() || '';
+
+
+        if (!auth.idToken) {
+
+          showFatal(
+            'ไม่สามารถรับข้อมูลยืนยันตัวตนจาก LINE ได้ กรุณาตรวจสอบว่า LIFF เปิด Scope: openid แล้ว'
+          );
+
+          return;
+        }
+
+
+        /*
+         * รับ Display Name
+         */
+        try {
+
+          const profile =
+            await liff.getProfile();
+
+          auth.displayName =
+            profile &&
+            profile.displayName
+              ? profile.displayName
+              : '';
+
+        } catch (error) {
+
+          console.warn(
+            'Cannot get LINE profile:',
+            error
+          );
+
           auth.displayName = '';
         }
 
-        loadFrame(currentPage);
+
+        /*
+         * เปิดหน้า Apps Script
+         */
+        loadFrame(
+          currentPage
+        );
+
 
       } catch (error) {
-        showFatal('เปิดระบบสมาชิกไม่สำเร็จ กรุณาปิดแล้วลองใหม่อีกครั้ง');
-        console.error(error);
+
+        console.error(
+          'LIFF init error:',
+          error
+        );
+
+        showFatal(
+          'เปิดระบบสมาชิกไม่สำเร็จ กรุณาปิดหน้าแล้วลองใหม่อีกครั้ง'
+        );
       }
     }
 
-    function loadFrame(page) {
-      currentPage = page === 'points' ? 'points' : 'register';
-      loading.classList.remove('hidden');
-      loadingText.textContent = currentPage === 'points'
-        ? 'กำลังเปิดหน้าแต้มสะสม...'
-        : 'กำลังเปิดหน้าสมัครสมาชิก...';
 
-      frame.src = GAS_URL + '?page=' + encodeURIComponent(currentPage);
+
+    /*
+     * ============================================
+     * เปิด Apps Script ตามหน้า
+     * ============================================
+     */
+    function loadFrame(page) {
+
+      currentPage =
+        page === 'points'
+          ? 'points'
+          : 'register';
+
+
+      loading.classList.remove(
+        'hidden'
+      );
+
+
+      if (
+        currentPage === 'points'
+      ) {
+
+        loadingText.textContent =
+          'กำลังเปิดหน้าแต้มสะสม...';
+
+      } else {
+
+        loadingText.textContent =
+          'กำลังเปิดหน้าสมัครสมาชิก...';
+      }
+
+
+      /*
+       * ป้องกัน cache ระหว่างทดสอบ
+       */
+      const cacheBust =
+        Date.now();
+
+
+      frame.src =
+        GAS_URL +
+        '?page=' +
+        encodeURIComponent(
+          currentPage
+        ) +
+        '&v=' +
+        cacheBust;
     }
 
-    frame.addEventListener('load', function () {
-      loading.classList.add('hidden');
-      sendAuthToFrame();
-    });
 
-    window.addEventListener('message', function (event) {
-      // รับเฉพาะข้อความจาก iframe ของเรา
-      if (event.source !== frame.contentWindow) return;
 
-      const data = event.data || {};
+    /*
+     * ============================================
+     * เมื่อ iframe โหลดสำเร็จ
+     * ============================================
+     */
+    frame.addEventListener(
+      'load',
+      function () {
 
-      if (data.type === 'YOKO_REQUEST_AUTH') {
+        loading.classList.add(
+          'hidden'
+        );
+
+        /*
+         * ส่ง LINE auth
+         * ไปยัง Apps Script iframe
+         */
         sendAuthToFrame();
+      }
+    );
+
+
+
+    /*
+     * ============================================
+     * รับ message จาก Apps Script
+     * ============================================
+     */
+    window.addEventListener(
+      'message',
+      function (event) {
+
+        /*
+         * รับเฉพาะ iframe ของเรา
+         */
+        if (
+          event.source !==
+          frame.contentWindow
+        ) {
+          return;
+        }
+
+
+        const data =
+          event.data || {};
+
+
+        /*
+         * Apps Script ขอ auth
+         */
+        if (
+          data.type ===
+          'YOKO_REQUEST_AUTH'
+        ) {
+
+          sendAuthToFrame();
+
+          return;
+        }
+
+
+        /*
+         * Apps Script ขอเปลี่ยนหน้า
+         */
+        if (
+          data.type ===
+          'YOKO_NAVIGATE'
+        ) {
+
+          const nextPage =
+            data.page === 'points'
+              ? 'points'
+              : 'register';
+
+          loadFrame(
+            nextPage
+          );
+
+          return;
+        }
+      }
+    );
+
+
+
+    /*
+     * ============================================
+     * ส่ง LINE ID Token ไป Apps Script
+     * ============================================
+     */
+    function sendAuthToFrame() {
+
+      if (
+        !frame.contentWindow
+      ) {
         return;
       }
 
-      if (data.type === 'YOKO_NAVIGATE') {
-        const nextPage = data.page === 'points' ? 'points' : 'register';
-        loadFrame(nextPage);
-      }
-    });
 
-    function sendAuthToFrame() {
-      if (!frame.contentWindow) return;
+      frame.contentWindow.postMessage(
+        {
+          type: 'YOKO_AUTH',
 
-      frame.contentWindow.postMessage({
-        type: 'YOKO_AUTH',
-        idToken: auth.idToken,
-        displayName: auth.displayName
-      }, '*');
+          idToken:
+            auth.idToken,
+
+          displayName:
+            auth.displayName
+        },
+        '*'
+      );
     }
 
+
+
+    /*
+     * ============================================
+     * แสดง Error
+     * ============================================
+     */
     function showFatal(message) {
-      loading.classList.remove('hidden');
-      loadingText.textContent = message;
+
+      loading.classList.remove(
+        'hidden'
+      );
+
+      loadingText.textContent =
+        message;
     }
 
+
+
+    /*
+     * ============================================
+     * START
+     * ============================================
+     */
     initApp();
+
   </script>
+
 </body>
 </html>
