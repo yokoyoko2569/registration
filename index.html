@@ -565,65 +565,103 @@
      * ============================================
      */
 
-    window.addEventListener(
-      'message',
-      function(event) {
+window.addEventListener(
+  'message',
+  function(event) {
 
-        /*
-         * รับเฉพาะ iframe นี้
-         */
-        if (
-          event.source !==
-          frame.contentWindow
-        ) {
-
-          return;
-        }
+    const data =
+      event.data || {};
 
 
-        const data =
-          event.data || {};
+    /*
+     * รับเฉพาะข้อความของระบบ YOKO YOKO
+     */
+    if (
+      data.type !== 'YOKO_REQUEST_AUTH' &&
+      data.type !== 'YOKO_NAVIGATE'
+    ) {
+      return;
+    }
 
 
-        /*
-         * Child ขอ LINE auth
-         */
-        if (
-          data.type ===
-          'YOKO_REQUEST_AUTH'
-        ) {
-
-          sendAuthToFrame();
-
-          return;
-        }
+    /*
+     * Apps Script ของ Google อาจอยู่บน
+     * script.google.com หรือ googleusercontent.com
+     */
+    const allowedOrigin =
+      event.origin === 'https://script.google.com' ||
+      event.origin.endsWith('.googleusercontent.com');
 
 
-        /*
-         * Child ขอเปลี่ยนหน้า
-         */
-        if (
-          data.type ===
-          'YOKO_NAVIGATE'
-        ) {
+    if (!allowedOrigin) {
 
-          const nextPage =
-            data.page ===
-            'points'
+      console.warn(
+        'Blocked message from:',
+        event.origin
+      );
 
-              ? 'points'
-
-              : 'register';
+      return;
+    }
 
 
-          loadFrame(
-            nextPage
-          );
+    /*
+     * Points / Index ขอ LINE Auth
+     *
+     * สำคัญ:
+     * ส่งกลับไปยัง window ที่ร้องขอโดยตรง
+     * ไม่ส่งผ่าน frame.contentWindow
+     */
+    if (
+      data.type ===
+      'YOKO_REQUEST_AUTH'
+    ) {
 
-          return;
-        }
+      if (!auth.idToken) {
+        return;
       }
-    );
+
+
+      event.source.postMessage(
+        {
+          type: 'YOKO_AUTH',
+
+          idToken:
+            auth.idToken,
+
+          displayName:
+            auth.displayName
+        },
+
+        event.origin
+      );
+
+
+      return;
+    }
+
+
+    /*
+     * เปลี่ยนหน้า
+     */
+    if (
+      data.type ===
+      'YOKO_NAVIGATE'
+    ) {
+
+      const nextPage =
+        data.page === 'points'
+          ? 'points'
+          : 'register';
+
+
+      loadFrame(
+        nextPage
+      );
+
+      return;
+    }
+  }
+);
 
 
 
