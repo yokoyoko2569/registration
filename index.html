@@ -1,6 +1,9 @@
 <!DOCTYPE html>
+
 <html lang="th">
+
 <head>
+
   <meta charset="UTF-8">
 
   <meta
@@ -8,12 +11,18 @@
     content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
   >
 
-  <title>YOKO YOKO Member</title>
+  <title>
+    YOKO YOKO Member
+  </title>
 
-  <!-- LINE LIFF SDK -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <script
+    src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+  ></script>
+
 
   <style>
+
     * {
       box-sizing: border-box;
     }
@@ -22,10 +31,14 @@
     body {
       width: 100%;
       height: 100%;
+
       margin: 0;
       padding: 0;
+
       overflow: hidden;
+
       background: #f3e8e2;
+
       font-family:
         -apple-system,
         BlinkMacSystemFont,
@@ -33,8 +46,10 @@
         sans-serif;
     }
 
+
     #appFrame {
       position: absolute;
+
       top: 0;
       left: 0;
 
@@ -42,54 +57,72 @@
       height: 100%;
 
       border: 0;
+
       background: #f3e8e2;
     }
 
+
     #loading {
       position: absolute;
+
       inset: 0;
+
       z-index: 10;
 
       display: flex;
+
       align-items: center;
       justify-content: center;
 
       padding: 24px;
 
       text-align: center;
+
       color: #7a4a25;
+
       background: #f3e8e2;
     }
+
 
     #loading.hidden {
       display: none;
     }
 
+
     .box {
       width: 100%;
       max-width: 320px;
+
       line-height: 1.55;
     }
+
 
     .title {
       margin-bottom: 8px;
 
       color: #3d1e0a;
+
       font-size: 22px;
       font-weight: 800;
     }
 
+
     .message {
       font-size: 15px;
     }
+
   </style>
+
 </head>
+
 
 <body>
 
-  <!-- Loading screen -->
+
   <div id="loading">
+
     <div class="box">
+
       <div class="title">
         YOKO YOKO
       </div>
@@ -100,64 +133,86 @@
       >
         กำลังเปิดระบบสมาชิก...
       </div>
+
     </div>
+
   </div>
 
-  <!-- Apps Script Web App -->
+
   <iframe
     id="appFrame"
     title="YOKO YOKO Member"
-    allow="clipboard-read; clipboard-write"
   ></iframe>
 
 
+
   <script>
+
     /*
      * ============================================
-     * YOKO YOKO
-     * LINE LIFF → GitHub Pages → Apps Script
+     * CONFIG
      * ============================================
      */
 
-    const LIFF_ID = '2010317821-PogKrdLy';
+    const LIFF_ID =
+      '2010317821-PogKrdLy';
 
-    /*
-     * Apps Script Web App URL ตัวใหม่
-     */
+
     const GAS_URL =
       'https://script.google.com/macros/s/AKfycbwmQZnWL7USCRAUtbXfLK-0a2f_iRYlHyp6xXov37gON8drB_PMP35uMJtOXFeA8XLS/exec';
 
 
+
+    /*
+     * ============================================
+     * ELEMENTS
+     * ============================================
+     */
+
     const frame =
-      document.getElementById('appFrame');
+      document.getElementById(
+        'appFrame'
+      );
+
 
     const loading =
-      document.getElementById('loading');
+      document.getElementById(
+        'loading'
+      );
+
 
     const loadingText =
-      document.getElementById('loadingText');
+      document.getElementById(
+        'loadingText'
+      );
 
-
-    let currentPage = 'register';
-
-    let auth = {
-      idToken: '',
-      displayName: ''
-    };
 
 
     /*
      * ============================================
-     * ตรวจว่า user ต้องการเปิดหน้าอะไร
-     *
-     * รองรับ:
-     *
-     * ?page=register
-     * ?page=points
-     *
-     * รวมถึงกรณี LINE ส่งผ่าน liff.state
+     * STATE
      * ============================================
      */
+
+    let currentPage =
+      'register';
+
+
+    let auth = {
+
+      idToken: '',
+
+      displayName: ''
+    };
+
+
+
+    /*
+     * ============================================
+     * GET PAGE
+     * ============================================
+     */
+
     function getRequestedPage() {
 
       const params =
@@ -167,72 +222,79 @@
 
 
       /*
-       * 1. หา page ปกติก่อน
-       *
-       * รองรับกรณีมี page ซ้ำ
-       * โดยใช้ค่าตัวสุดท้าย
+       * Page ปกติ
        */
       const pages =
         params.getAll('page');
 
-      if (pages.length > 0) {
 
-        const lastPage =
+      if (
+        pages.length > 0
+      ) {
+
+        const last =
           String(
-            pages[pages.length - 1]
-          ).toLowerCase();
+            pages[
+              pages.length - 1
+            ]
+          )
+          .toLowerCase();
 
-        if (lastPage === 'points') {
-          return 'points';
-        }
 
-        return 'register';
+        return last === 'points'
+          ? 'points'
+          : 'register';
       }
 
 
       /*
-       * 2. fallback:
-       * บางครั้ง LINE อาจเก็บ URL ไว้ใน liff.state
+       * Fallback สำหรับ LINE liff.state
        */
-      const liffState =
-        params.get('liff.state');
+      const state =
+        params.get(
+          'liff.state'
+        );
 
-      if (liffState) {
+
+      if (state) {
 
         try {
 
           let decoded =
-            decodeURIComponent(liffState);
+            decodeURIComponent(
+              state
+            );
 
-          /*
-           * ตัวอย่าง:
-           *
-           * /?page=points
-           *
-           * หรือ
-           *
-           * ?page=points
-           */
+
           if (
             decoded.startsWith('/')
           ) {
+
             decoded =
               decoded.substring(1);
           }
 
+
           if (
             decoded.startsWith('?')
           ) {
+
             decoded =
               decoded.substring(1);
           }
 
 
           const stateParams =
-            new URLSearchParams(decoded);
+            new URLSearchParams(
+              decoded
+            );
+
 
           const statePages =
-            stateParams.getAll('page');
+            stateParams.getAll(
+              'page'
+            );
+
 
           if (
             statePages.length > 0
@@ -243,29 +305,28 @@
                 statePages[
                   statePages.length - 1
                 ]
-              ).toLowerCase();
+              )
+              .toLowerCase();
 
-            if (
-              statePage === 'points'
-            ) {
-              return 'points';
-            }
+
+            return statePage ===
+              'points'
+
+              ? 'points'
+
+              : 'register';
           }
 
         } catch (error) {
 
           console.warn(
-            'Cannot parse liff.state:',
+            'Cannot parse liff.state',
             error
           );
         }
       }
 
 
-      /*
-       * ถ้าไม่มี page
-       * ให้สมัครสมาชิกเป็นค่า default
-       */
       return 'register';
     }
 
@@ -273,9 +334,10 @@
 
     /*
      * ============================================
-     * เริ่ม LIFF
+     * LIFF INIT
      * ============================================
      */
+
     async function initApp() {
 
       try {
@@ -284,41 +346,35 @@
           'กำลังเชื่อมต่อ LINE...';
 
 
-        /*
-         * สำคัญ:
-         * ต้อง init ก่อน
-         */
         await liff.init({
-          liffId: LIFF_ID
+          liffId:
+            LIFF_ID
         });
 
 
         /*
-         * หลัง init แล้ว
-         * ค่อยตรวจ page
+         * อ่าน page หลัง liff.init
          */
         currentPage =
           getRequestedPage();
 
 
         console.log(
-          'Current URL:',
-          window.location.href
-        );
-
-        console.log(
-          'Requested page:',
+          'YOKO page:',
           currentPage
         );
 
 
         /*
-         * ถ้ายังไม่ได้ Login LINE
+         * Login
          */
-        if (!liff.isLoggedIn()) {
+        if (
+          !liff.isLoggedIn()
+        ) {
 
           loadingText.textContent =
             'กำลังเข้าสู่ระบบ LINE...';
+
 
           liff.login();
 
@@ -326,50 +382,60 @@
         }
 
 
+
         /*
-         * รับ ID Token
+         * ID Token
          */
         auth.idToken =
           liff.getIDToken() || '';
 
 
-        if (!auth.idToken) {
+        if (
+          !auth.idToken
+        ) {
 
           showFatal(
-            'ไม่สามารถรับข้อมูลยืนยันตัวตนจาก LINE ได้ กรุณาตรวจสอบว่า LIFF เปิด Scope: openid แล้ว'
+            'ไม่สามารถรับข้อมูลยืนยันตัวตน LINE ได้ กรุณาตรวจสอบว่า LIFF เปิด Scope: openid'
           );
 
           return;
         }
 
 
+
         /*
-         * รับ Display Name
+         * Profile
          */
         try {
 
           const profile =
             await liff.getProfile();
 
+
           auth.displayName =
             profile &&
             profile.displayName
+
               ? profile.displayName
+
               : '';
 
         } catch (error) {
 
           console.warn(
-            'Cannot get LINE profile:',
+            'Cannot get profile:',
             error
           );
 
-          auth.displayName = '';
+
+          auth.displayName =
+            '';
         }
 
 
+
         /*
-         * เปิดหน้า Apps Script
+         * เปิด Apps Script
          */
         loadFrame(
           currentPage
@@ -379,12 +445,13 @@
       } catch (error) {
 
         console.error(
-          'LIFF init error:',
+          'LIFF ERROR:',
           error
         );
 
+
         showFatal(
-          'เปิดระบบสมาชิกไม่สำเร็จ กรุณาปิดหน้าแล้วลองใหม่อีกครั้ง'
+          'เปิดระบบสมาชิกไม่สำเร็จ กรุณาปิดแล้วลองใหม่อีกครั้ง'
         );
       }
     }
@@ -393,14 +460,19 @@
 
     /*
      * ============================================
-     * เปิด Apps Script ตามหน้า
+     * OPEN GAS PAGE
      * ============================================
      */
-    function loadFrame(page) {
+
+    function loadFrame(
+      page
+    ) {
 
       currentPage =
         page === 'points'
+
           ? 'points'
+
           : 'register';
 
 
@@ -409,57 +481,80 @@
       );
 
 
-      if (
+      loadingText.textContent =
         currentPage === 'points'
-      ) {
 
-        loadingText.textContent =
-          'กำลังเปิดหน้าแต้มสะสม...';
+          ? 'กำลังเปิดหน้าแต้มสะสม...'
 
-      } else {
+          : 'กำลังเปิดหน้าสมัครสมาชิก...';
 
-        loadingText.textContent =
-          'กำลังเปิดหน้าสมัครสมาชิก...';
-      }
 
 
       /*
-       * ป้องกัน cache ระหว่างทดสอบ
+       * Cache busting
        */
-      const cacheBust =
+      const version =
         Date.now();
 
 
       frame.src =
         GAS_URL +
+
         '?page=' +
+
         encodeURIComponent(
           currentPage
         ) +
+
         '&v=' +
-        cacheBust;
+
+        version;
     }
 
 
 
     /*
      * ============================================
-     * เมื่อ iframe โหลดสำเร็จ
+     * FRAME LOADED
      * ============================================
      */
+
     frame.addEventListener(
       'load',
-      function () {
+      function() {
 
         loading.classList.add(
           'hidden'
         );
 
+
         /*
-         * ส่ง LINE auth
-         * ไปยัง Apps Script iframe
+         * ส่งทันที
          */
         sendAuthToFrame();
+
+
+        /*
+         * ส่งซ้ำอีกหลายครั้ง
+         * ป้องกัน child listener
+         * ยังโหลดไม่ทัน
+         */
+        setTimeout(
+          sendAuthToFrame,
+          250
+        );
+
+
+        setTimeout(
+          sendAuthToFrame,
+          700
+        );
+
+
+        setTimeout(
+          sendAuthToFrame,
+          1500
+        );
       }
     );
 
@@ -467,20 +562,22 @@
 
     /*
      * ============================================
-     * รับ message จาก Apps Script
+     * RECEIVE MESSAGE FROM GAS
      * ============================================
      */
+
     window.addEventListener(
       'message',
-      function (event) {
+      function(event) {
 
         /*
-         * รับเฉพาะ iframe ของเรา
+         * รับเฉพาะ iframe นี้
          */
         if (
           event.source !==
           frame.contentWindow
         ) {
+
           return;
         }
 
@@ -490,7 +587,7 @@
 
 
         /*
-         * Apps Script ขอ auth
+         * Child ขอ LINE auth
          */
         if (
           data.type ===
@@ -504,7 +601,7 @@
 
 
         /*
-         * Apps Script ขอเปลี่ยนหน้า
+         * Child ขอเปลี่ยนหน้า
          */
         if (
           data.type ===
@@ -512,9 +609,13 @@
         ) {
 
           const nextPage =
-            data.page === 'points'
+            data.page ===
+            'points'
+
               ? 'points'
+
               : 'register';
+
 
           loadFrame(
             nextPage
@@ -529,44 +630,62 @@
 
     /*
      * ============================================
-     * ส่ง LINE ID Token ไป Apps Script
+     * SEND LINE AUTH
      * ============================================
      */
+
     function sendAuthToFrame() {
 
       if (
         !frame.contentWindow
       ) {
+
         return;
       }
 
 
-      frame.contentWindow.postMessage(
-        {
-          type: 'YOKO_AUTH',
+      if (
+        !auth.idToken
+      ) {
 
-          idToken:
-            auth.idToken,
+        return;
+      }
 
-          displayName:
-            auth.displayName
-        },
-        '*'
-      );
+
+      frame.contentWindow
+        .postMessage(
+          {
+
+            type:
+              'YOKO_AUTH',
+
+            idToken:
+              auth.idToken,
+
+            displayName:
+              auth.displayName
+
+          },
+          '*'
+        );
     }
 
 
 
     /*
      * ============================================
-     * แสดง Error
+     * FATAL ERROR
      * ============================================
      */
-    function showFatal(message) {
+
+    function showFatal(
+      message
+    ) {
 
       loading.classList.remove(
         'hidden'
       );
+
 
       loadingText.textContent =
         message;
@@ -579,9 +698,11 @@
      * START
      * ============================================
      */
+
     initApp();
 
   </script>
 
 </body>
+
 </html>
