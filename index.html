@@ -1,11 +1,174 @@
 <!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YOKO YOKO Member</title>
 
-<html>
-   <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-      <base target="_top">
-   </head>
-   <body>
-      <iframe style="position: absolute;top: 0;left: 0;width: 100%;height: 100%;border: 0;" src="https://script.google.com/macros/s/AKfycbzI_0G17EB80WhM4imQi20EG0vxaqX0ZjfPWn6gWCSOUPr0uswcZhAtX6EnoI6QYyMA/exec"></iframe>
-   </body>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #f3e8e2;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #appFrame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #f3e8e2;
+    }
+
+    #loading {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      color: #7a4a25;
+      background: #f3e8e2;
+    }
+
+    #loading.hidden { display: none; }
+
+    .box {
+      max-width: 320px;
+      line-height: 1.55;
+    }
+
+    .title {
+      margin-bottom: 8px;
+      color: #3d1e0a;
+      font-weight: 800;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="box">
+      <div class="title">YOKO YOKO</div>
+      <div id="loadingText">กำลังเปิดระบบสมาชิก...</div>
+    </div>
+  </div>
+
+  <iframe id="appFrame" title="YOKO YOKO Member"></iframe>
+
+  <script>
+    // LIFF ID ปัจจุบันของ YOKO YOKO
+    const LIFF_ID = '2010317821-PogKrdLy';
+
+    // Apps Script Web App URL ปัจจุบัน
+    // const GAS_URL = 'https://script.google.com/macros/s/AKfycbzI_0G17EB80WhM4imQi20EG0vxaqX0ZjfPWn6gWCSOUPr0uswcZhAtX6EnoI6QYyMA/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwmQZnWL7USCRAUtbXfLK-0a2f_iRYlHyp6xXov37gON8drB_PMP35uMJtOXFeA8XLS/exec';
+    const frame = document.getElementById('appFrame');
+    const loading = document.getElementById('loading');
+    const loadingText = document.getElementById('loadingText');
+
+    let currentPage = 'register';
+    let auth = {
+      idToken: '',
+      displayName: ''
+    };
+
+    async function initApp() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        // สำคัญ: อ่าน query parameter หลัง liff.init() เสร็จแล้ว
+        const params = new URLSearchParams(window.location.search);
+        currentPage = params.get('page') === 'points' ? 'points' : 'register';
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        auth.idToken = liff.getIDToken() || '';
+
+        if (!auth.idToken) {
+          showFatal(
+            'ไม่สามารถรับข้อมูลยืนยันตัวตน LINE ได้ กรุณาตรวจสอบว่า LIFF เปิด Scope: openid แล้ว'
+          );
+          return;
+        }
+
+        try {
+          const profile = await liff.getProfile();
+          auth.displayName = profile && profile.displayName
+            ? profile.displayName
+            : '';
+        } catch (e) {
+          auth.displayName = '';
+        }
+
+        loadFrame(currentPage);
+
+      } catch (error) {
+        showFatal('เปิดระบบสมาชิกไม่สำเร็จ กรุณาปิดแล้วลองใหม่อีกครั้ง');
+        console.error(error);
+      }
+    }
+
+    function loadFrame(page) {
+      currentPage = page === 'points' ? 'points' : 'register';
+      loading.classList.remove('hidden');
+      loadingText.textContent = currentPage === 'points'
+        ? 'กำลังเปิดหน้าแต้มสะสม...'
+        : 'กำลังเปิดหน้าสมัครสมาชิก...';
+
+      frame.src = GAS_URL + '?page=' + encodeURIComponent(currentPage);
+    }
+
+    frame.addEventListener('load', function () {
+      loading.classList.add('hidden');
+      sendAuthToFrame();
+    });
+
+    window.addEventListener('message', function (event) {
+      // รับเฉพาะข้อความจาก iframe ของเรา
+      if (event.source !== frame.contentWindow) return;
+
+      const data = event.data || {};
+
+      if (data.type === 'YOKO_REQUEST_AUTH') {
+        sendAuthToFrame();
+        return;
+      }
+
+      if (data.type === 'YOKO_NAVIGATE') {
+        const nextPage = data.page === 'points' ? 'points' : 'register';
+        loadFrame(nextPage);
+      }
+    });
+
+    function sendAuthToFrame() {
+      if (!frame.contentWindow) return;
+
+      frame.contentWindow.postMessage({
+        type: 'YOKO_AUTH',
+        idToken: auth.idToken,
+        displayName: auth.displayName
+      }, '*');
+    }
+
+    function showFatal(message) {
+      loading.classList.remove('hidden');
+      loadingText.textContent = message;
+    }
+
+    initApp();
+  </script>
+</body>
 </html>
